@@ -12,6 +12,7 @@ curl -L -o ~/Downloads/voxconverse-dataset.zip\
 After downloading, you can take the path of the voxconverse-dataset file:
 
 ```bash
+voxconverse-dataset -- THIS IS DATA DIRECTORY
 /voxconverse-dataset/labels/dev
 /voxconverse-dataset/voxconverse_dev_wav/audio
 ```
