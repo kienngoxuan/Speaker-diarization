@@ -3,6 +3,20 @@ This project evaluates speaker diarization performance using [pyannote/speaker-d
 
 VoxConverse dataset: https://www.kaggle.com/datasets/washingtongold/voxconverse-dataset
 
+Or you can use cURL
+```bash
+#!/bin/bash
+curl -L -o ~/Downloads/voxconverse-dataset.zip\
+  https://www.kaggle.com/api/v1/datasets/download/washingtongold/voxconverse-dataset
+```
+After downloading, you can take the path of the voxconverse-dataset file:
+
+```bash
+/voxconverse-dataset/labels/dev
+/voxconverse-dataset/voxconverse_dev_wav/audio
+```
+
+
 My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarization-project
 # 🚀 Setup
 
@@ -31,6 +45,17 @@ My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarizat
 
   - Open ```main.py``` and paste your token into the ```HUGGING_FACE_TOKEN``` variable.
 
+# ▶️ Run Evaluation
+Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
+```python
+main.py \
+  --data-dir ./data \
+  --num-files 10 \
+  --whisper-model tiny.en \
+  --diarization-model pyannote/speaker-diarization-3.1 \
+  --device cuda
+```
+
 # ❔ What the code does
 1: Matching Speakers Between Hypothesis and Ground Truth (with Logical Mapping)
 
@@ -52,18 +77,6 @@ print(formatted_text)
 ```python
 df_results.to_csv("diarization_results.csv", index=False)
 ```
-
-# ▶️ Run Evaluation
-Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
-```python
-main.py \
-  --data-dir ./data \
-  --num-files 10 \
-  --whisper-model tiny.en \
-  --diarization-model pyannote/speaker-diarization-3.1 \
-  --device cuda
-```
-
 
 # 📈 Example Output
 The script will first log the real-time progress for each file, then display a final summary table with the results.
