@@ -28,7 +28,7 @@ My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarizat
 
 - Audio ```(.wav)``` and ground truth ```(.rttm)``` files placed in the ```/data``` directory.
 - Clone & Install
-  - git clone [https://github.com/your‑org/whisper‑pyannote‑diarization.git](https://github.com/kienngoxuan/Speaker-diarization)
+  - git clone [https://github.com/kienngoxuan/Speaker-diarization](https://github.com/kienngoxuan/Speaker-diarization)
   - cd whisper‑pyannote‑diarization
   - pip install -r requirements.txt
 
