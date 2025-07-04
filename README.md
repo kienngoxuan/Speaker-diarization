@@ -9,7 +9,7 @@ Or you can use cURL
 curl -L -o ~/Downloads/voxconverse-dataset.zip\
   https://www.kaggle.com/api/v1/datasets/download/washingtongold/voxconverse-dataset
 ```
-After downloading, here is your path of the voxconverse-dataset file should look like this:
+After downloading, your path of the voxconverse-dataset file should look like this:
 
 ```bash
 your_dir/voxconverse-dataset -- THIS IS DATA DIRECTORY
