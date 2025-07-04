@@ -48,6 +48,9 @@ My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarizat
 
 # ▶️ Run Evaluation
 Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
+
+NOTICE THAT, YOUR DATA-DIR SHOULD BE: your_dir/voxconverse-dataset
+
 ```python
 main.py \
   --data-dir ./data \
