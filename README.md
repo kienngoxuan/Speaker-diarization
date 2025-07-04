@@ -28,9 +28,11 @@ My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarizat
   - Open ```main.py``` and paste your token into the ```HUGGING_FACE_TOKEN``` variable.
 
 # ❔ What the code does
-1: This code will matching speaker between the hypothesis prediction versus ground_truth file
+1: Matching Speakers Between Hypothesis and Ground Truth (with Logical Mapping)
 
-2: It will display the conversation of each file if you add this code (since I only need DER so I don't put it in my code)
+- This code normalizes speaker labels in the hypothesis for easier comparison with ground truth but does not explicitly align speaker identities. The DER metric handles speaker permutation when comparing.
+
+2: You can Display the Conversation Using Whisper (Optional)
 ```python
 model = whisper.load_model("tiny.en")
 # Audio file path (from your example)
@@ -42,7 +44,10 @@ sentences = re.split(r'(?<=[.!?])\s+', text)
 formatted_text = "\n".join(sentences)
 print(formatted_text)
 ```
-3: It will calculate DER, give you the result of each file and save csv file
+3: Calculates DER, Gives Per-File Results, Saves CSV:
+```python
+df_results.to_csv("diarization_results.csv", index=False)
+```
 
 # ▶️ Run Evaluation
 Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
