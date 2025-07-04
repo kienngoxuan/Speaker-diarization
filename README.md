@@ -13,6 +13,10 @@ My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarizat
 - NVIDIA GPU with CUDA (recommended)
 
 - Audio ```(.wav)``` and ground truth ```(.rttm)``` files placed in the ```/data``` directory.
+- Clone & Install
+  - git clone [https://github.com/your‑org/whisper‑pyannote‑diarization.git](https://github.com/kienngoxuan/Speaker-diarization)
+  - cd whisper‑pyannote‑diarization
+  - pip install -r requirements.txt
 
 # Installation & Configuration
 
@@ -51,7 +55,15 @@ df_results.to_csv("diarization_results.csv", index=False)
 
 # ▶️ Run Evaluation
 Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
-```python main.py```
+```python
+main.py \
+  --data-dir ./data \
+  --num-files 10 \
+  --whisper-model tiny.en \
+  --diarization-model pyannote/speaker-diarization-3.1 \
+  --device cuda
+```
+
 
 # 📈 Example Output
 The script will first log the real-time progress for each file, then display a final summary table with the results.
