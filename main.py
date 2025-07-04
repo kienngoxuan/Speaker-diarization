@@ -1,171 +1,198 @@
-# main.py
-#Here is my kaggle notebook
 import os
 import glob
 import random
-import warnings
-import pandas as pd
+import argparse
+import logging
+from typing import List, Dict, Any
+
+import numpy as np
 import torch
+import pandas as pd
 import librosa
-import whisper
+from pydub import AudioSegment
 from huggingface_hub import login
+import whisper
 from pyannote.audio import Pipeline
 from pyannote.core import Annotation, Segment
 from pyannote.metrics.diarization import DiarizationErrorRate
 
-# --- Configuration ---
-# Note: You must first log in to Hugging Face and accept the user agreement for the models.
-# from huggingface_hub import login; login()
 
-DATA_DIR = "/kaggle/input/voxconverse-dataset" # Or your local data path
-NUM_FILES_TO_EVALUATE = 10
-RANDOM_SEED = 42
-WHISPER_MODEL_SIZE = "tiny.en" # Options: tiny.en, base, small, medium, large, large-v2
-HUGGING_FACE_TOKEN = "YOUR_HUGGING_FACE_READ_TOKEN" # Replace with your token
-
-# --- Setup ---
-
-def setup_environment():
-    """Initializes random seeds and suppresses warnings for a clean run."""
-    random.seed(RANDOM_SEED)
-    np.random.seed(RANDOM_SEED)
-    torch.manual_seed(RANDOM_SEED)
-    warnings.filterwarnings("ignore")
-
-def get_device():
-    """Checks for and returns the available Torch device (CUDA or CPU)."""
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"✅ Using device: {device}")
-    return device
-
-# --- Core Functions ---
-
-def parse_rttm_file(rttm_file_path: str) -> Annotation:
+def setup_logging(level: str = "INFO") -> None:
     """
-    Parses an RTTM file and returns its content as a pyannote.core.Annotation object.
-
-    Args:
-        rttm_file_path: The path to the RTTM file.
-
-    Returns:
-        A pyannote Annotation object containing the ground truth speaker segments.
+    Configure logging for the pipeline.
     """
-    ground_truth = Annotation()
+    logging.basicConfig(
+        level=getattr(logging, level.upper(), logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments.
+    """
+    parser = argparse.ArgumentParser(
+        description="Speaker diarization evaluation pipeline"
+    )
+    parser.add_argument(
+        "--data-dir", 
+        type=str, 
+        required=True, 
+        help="Path to directory containing .wav and .rttm files"
+    )
+    parser.add_argument(
+        "--num-files", 
+        type=int, 
+        default=10, 
+        help="Number of random audio files to process"
+    )
+    parser.add_argument(
+        "--seed", 
+        type=int, 
+        default=42, 
+        help="Random seed for reproducibility"
+    )
+    parser.add_argument(
+        "--whisper-model", 
+        type=str, 
+        default="tiny.en", 
+        help="Whisper model checkpoint"
+    )
+    parser.add_argument(
+        "--diarization-model", 
+        type=str, 
+        default="pyannote/speaker-diarization-3.1", 
+        help="Pyannote pretrained diarization pipeline"
+    )
+    parser.add_argument(
+        "--device", 
+        type=str, 
+        choices=["cpu", "cuda"], 
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        help="Compute device"
+    )
+    parser.add_argument(
+        "--log-level", 
+        type=str, 
+        default="INFO",
+        help="Logging level"
+    )
+    return parser.parse_args()
+
+
+def parse_rttm(rttm_file_path: str) -> Annotation:
+    """
+    Parse an RTTM file into a pyannote Annotation.
+    """
+    ref = Annotation()
     with open(rttm_file_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
-            if parts[0] == "SPEAKER":
-                start_time = float(parts[3])
-                duration = float(parts[4])
-                speaker_label = parts[7]
-                segment = Segment(start_time, start_time + duration)
-                ground_truth[segment] = speaker_label
-    return ground_truth
+            if len(parts) >= 8 and parts[0] == "SPEAKER":
+                start = float(parts[3])
+                dur = float(parts[4])
+                ref[Segment(start, start + dur)] = parts[7]
+    return ref
 
-def create_speaker_label_mapping(diarization: Annotation) -> dict:
+
+def create_label_mapping(speakers: List[str]) -> Dict[str, str]:
     """
-    Creates a mapping from the predicted speaker labels (e.g., 'SPEAKER_00') to
-    more readable labels (e.g., 'SPEAKER_A', 'SPEAKER_B').
-
-    Args:
-        diarization: The pyannote Annotation object with predicted speaker turns.
-
-    Returns:
-        A dictionary mapping original speaker labels to new, ordered labels.
+    Map raw speaker labels to logical SPEAKER_XX labels.
     """
-    speaker_labels = sorted(diarization.labels())
-    mapping = {label: f"SPEAKER_{chr(65 + i)}" for i, label in enumerate(speaker_labels)}
-    return mapping
+    return {spk: f"SPEAKER_{i:02d}" for i, spk in enumerate(sorted(speakers))}
 
-# --- Main Evaluation Logic ---
 
-def main():
+def evaluate_files(
+    audio_paths: List[str],
+    rttm_paths: List[str],
+    args: argparse.Namespace,
+    whisper_model: Any,
+    diarization_pipeline: Pipeline
+) -> pd.DataFrame:
     """
-    Main function to run the speaker diarization evaluation pipeline.
+    Run evaluation on a list of audio files and return results as DataFrame.
     """
-    print("🚀 Starting Speaker Diarization Evaluation...")
-    setup_environment()
-    
-    # Authenticate with Hugging Face Hub
-    try:
-        login(token=HUGGING_FACE_TOKEN)
-    except Exception as e:
-        print(f"🛑 Hugging Face login failed. Please provide a valid token. Error: {e}")
-        return
+    results = []
+    der_scores = []
+
+    # Seed everything
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+
+    selected = random.sample(audio_paths, min(args.num_files, len(audio_paths)))
+    logging.info(f"Selected {len(selected)} files for evaluation")
+
+    for audio_file in selected:
+        base = os.path.splitext(os.path.basename(audio_file))[0]
+        rttm_file = next((f for f in rttm_paths if base in os.path.basename(f)), None)
+        if not rttm_file:
+            logging.warning(f"No RTTM found for {audio_file}, skipping")
+            continue
+
+        duration = librosa.get_duration(filename=audio_file)
+        _ = whisper_model.transcribe(audio_file)
+
+        diarization = diarization_pipeline(audio_file)
+        hyp = Annotation()
+        speakers = set()
+        for turn, _, spk in diarization.itertracks(yield_label=True):
+            hyp[Segment(turn.start, turn.end)] = spk
+            speakers.add(spk)
+
+        mapping = create_label_mapping(list(speakers))
+        mapped = Annotation()
+        for seg, _, lbl in hyp.itertracks(yield_label=True):
+            mapped[seg] = mapping[lbl]
+
+        ref_ann = parse_rttm(rttm_file)
+        der_metric = DiarizationErrorRate()
+        score = der_metric(ref_ann, mapped, uem=ref_ann.get_timeline().extent())
+        der_scores.append(score)
+
+        results.append({
+            "file_name": os.path.basename(audio_file),
+            "duration_sec": round(duration, 2),
+            "DER": round(score, 4)
+        })
+
+        logging.info(f"{os.path.basename(audio_file)}: Duration {duration:.2f}s, DER {100*score:.2f}%")
+
+    avg_der = sum(der_scores) / len(der_scores) if der_scores else 0.0
+    logging.info(f"Average DER: {100*avg_der:.2f}%")
+
+    df = pd.DataFrame(results)
+    df["average_DER"] = round(avg_der, 4)
+    return df
+
+
+def main() -> None:
+    args = parse_args()
+    setup_logging(args.log_level)
+
+    # Login to Huggingface
+    login()
 
     # Load models
-    device = get_device()
-    print("Loading models...")
-    asr_model = whisper.load_model(WHISPER_MODEL_SIZE, device=device)
-    diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1").to(device)
-    print("✅ Models loaded successfully.")
+    whisper_model = whisper.load_model(args.whisper_model).to(args.device)
+    diarization_pipeline = Pipeline.from_pretrained(args.diarization_model).to(args.device)
 
-    # Find audio and RTTM files
-    audio_files = glob.glob(os.path.join(DATA_DIR, "**", "*.wav"), recursive=True)
-    rttm_files = {os.path.splitext(os.path.basename(f))[0]: f for f in glob.glob(os.path.join(DATA_DIR, "**", "*.rttm"), recursive=True)}
+    # Discover files
+    audio_files = glob.glob(os.path.join(args.data_dir, "**", "*.wav"), recursive=True)
+    rttm_files = glob.glob(os.path.join(args.data_dir, "**", "*.rttm"), recursive=True)
 
-    if not audio_files:
-        print(f"🛑 No .wav files found in {DATA_DIR}. Please check the path.")
+    if not audio_files or not rttm_files:
+        logging.error("No audio or RTTM files found, exiting")
         return
 
-    # Select a random sample of files for evaluation
-    selected_audio_files = random.sample(audio_files, min(NUM_FILES_TO_EVALUATE, len(audio_files)))
-    evaluation_results = []
-    der_metric = DiarizationErrorRate()
+    # Run evaluation
+    df_results = evaluate_files(audio_files, rttm_files, args, whisper_model, diarization_pipeline)
 
-    print(f"\nEvaluating {len(selected_audio_files)} files (Seed: {RANDOM_SEED})...")
-
-    # --- Evaluation Loop ---
-    for i, audio_path in enumerate(selected_audio_files):
-        file_basename = os.path.splitext(os.path.basename(audio_path))[0]
-        print(f"\n[{i+1}/{len(selected_audio_files)}] Processing: {file_basename}.wav")
-
-        # Check for corresponding RTTM file
-        if file_basename not in rttm_files:
-            print(f"   ⚠️ Warning: Ground truth RTTM file not found for {file_basename}. Skipping.")
-            continue
-        
-        rttm_path = rttm_files[file_basename]
-
-        # 1. Run Diarization Pipeline
-        diarization = diarization_pipeline(audio_path)
-        
-        # 2. Get Ground Truth
-        ground_truth = parse_rttm_file(rttm_path)
-
-        # 3. Compute Diarization Error Rate (DER)
-        der_score = der_metric(ground_truth, diarization)
-        
-        # Optional: Transcribe for context (not used in DER calculation)
-        # transcription_result = asr_model.transcribe(audio_path)
-        # transcription_text = transcription_result["text"]
-
-        evaluation_results.append({
-            "File Name": f"{file_basename}.wav",
-            "DER (%)": round(der_score * 100, 2),
-            "Hypothesis Speakers": len(diarization.labels()),
-            "Ground Truth Speakers": len(ground_truth.labels()),
-        })
-        print(f"   📊 DER: {der_score * 100:.2f}%")
+    # Save results
+    output_csv = os.path.join(os.getcwd(), "diarization_results.csv")
+    df_results.to_csv(output_csv, index=False)
+    logging.info(f"Saved results to {output_csv}")
 
 
-    # --- Final Results ---
-    if not evaluation_results:
-        print("\n🛑 No files were evaluated successfully.")
-        return
-
-    results_df = pd.DataFrame(evaluation_results)
-    average_der = results_df["DER (%)"].mean()
-
-    print("\n" + "="*50)
-    print("✅ EVALUATION COMPLETE")
-    print("="*50)
-    print(f"\nAverage Diarization Error Rate (DER): {average_der:.2f}%\n")
-    
-    print("--- Detailed Results ---")
-    print(results_df.to_string(index=False))
-    print("="*50)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
