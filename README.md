@@ -1,105 +1,65 @@
-# Speaker-diarization
+# Whisper & Pyannote Speaker Diarization
+This project evaluates speaker diarization performance using pyannote/speaker-diarization-3.1 and calculates the Diarization Error Rate (DER) against RTTM ground truth files.
 
-# ➡️ Here is the dataset i use: 
-https://www.kaggle.com/datasets/washingtongold/voxconverse-dataset
+# 🚀 Setup
 
-# ➡️ Here is the requirements to run my speaker-diarization:
+# Prerequisites
 
-!pip install -q openai-whisper
+- Python 3.8+
 
-!pip install -q pyannote.audio==3.1.1
+- NVIDIA GPU with CUDA (recommended)
 
-!pip install -q pydub
+- Audio ```(.wav)``` and ground truth ```(.rttm)``` files placed in the ```/data``` directory.
 
-!pip install -q matplotlib
+# Installation & Configuration
 
-!pip install -q librosa
+- Install dependencies from the ```requirements.txt``` file:
 
-!pip install -q soundfile
+``` pip install -r requirements.txt```
 
-!pip install -q huggingface_hub
+- Authenticate with Hugging Face:
+  - Accept user conditions for ```pyannote/segmentation-3.0``` and ```pyannote/speaker-diarization-3.1.```
 
-!pip install -q numpy<2.0
+  - Create a read-only access token at hf.co/settings/tokens.
 
+  - Open ```main.py``` and paste your token into the ```HUGGING_FACE_TOKEN``` variable.
 
-# ➡️ Here is the import libraries:
+# ▶️ Run Evaluation
+Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
 
-import whisper
+```python main.py```
 
-import re
+# 📈 Example Output
+The script will first log the real-time progress for each file, then display a final summary table with the results.
 
-import os
+Processing Log
+```python
+🚀 Starting Speaker Diarization Evaluation...
+✅ Using device: cuda
+Loading models...
+✅ Models loaded successfully.
 
-import warnings
+Evaluating 7 files (Seed: 42)...
 
-import numpy as np
+[1/7] Processing: yrsve.wav | Duration: 587.04s | DER: 6.05%
+[2/7] Processing: usbgm.wav | Duration: 58.39s | DER: 0.14%
+...
+```
+Final Results Table
+``` ==================================================
+✅ EVALUATION COMPLETE
+==================================================
 
-import torch
+Average Diarization Error Rate (DER): 4.42%
 
-import matplotlib.pyplot as plt
-
-import librosa
-
-import librosa.display
-
-from pydub import AudioSegment
-
-import colorsys
-
-from huggingface_hub import login
-
-from pyannote.audio import Pipeline
-
-from pyannote.core import Annotation, Segment
-
-from pyannote.metrics.diarization import DiarizationErrorRate
-
-import random
-
-import glob
-
-➡️ You have to agree to share your contact information to access Pyannote model
-➡️ Then create access token with Token type = 'Read', copy that token and put it into the output of this code:
-
-from huggingface_hub import login
-
-login()
-
-# ➡️ You can change the number of input files and random seed:
-
-#Set a random seed for reproducibility
-
-random_seeds = [42, 7, 99]
-
-num_files = 10
-
-# ➡️ If you want to have the communication, you can use this code:
-
-![image](https://github.com/user-attachments/assets/0b5f2a64-40df-4e2a-bfe2-a8dca9a25b26)
-
-#You can change the tiny.en into base/small/medium/large/large-v2
-
-model = whisper.load_model("tiny.en")
-
-audio_file_path = "your/directory/abcxyz.wav"
-
-#Should be .wav file
-
-result = model.transcribe(audio_file_path)
-
-text = result["text"]
-
-Split by sentence using regular expressions
-
-sentences = re.split(r'(?<=[.!?])\s+', text)
-
-#Join with newline after each sentence
-
-formatted_text = "\n".join(sentences)
-
-print("\n--- Transcription ---")
-
-print(formatted_text)
-
-# ➡️ The final cell would display the DER (Diarization Error Rate) of each file compared with its ground_truth rttm file
-Then it gives you the dataframe which displays name, predicted_diarization, ground_truth, DER score
+--- Detailed Results ---
+ File Name  Duration (sec)  DER (%)
+ yrsve.wav          587.04     6.05
+ usbgm.wav           58.39     0.14
+ yuzyu.wav          631.06     3.94
+ tiams.wav          151.17     2.70
+ paibn.wav          341.89     3.70
+ vmbga.wav          659.57     9.98
+ kckqn.wav          349.75     4.46
+==================================================
+```
