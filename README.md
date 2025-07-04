@@ -27,13 +27,30 @@ My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarizat
 
   - Open ```main.py``` and paste your token into the ```HUGGING_FACE_TOKEN``` variable.
 
+# ❔ What the code does
+1: This code will matching speaker between the hypothesis prediction versus ground_truth file
+
+2: It will display the conversation of each file if you add this code (since I only need DER so I don't put it in my code)
+```python
+model = whisper.load_model("tiny.en")
+# Audio file path (from your example)
+audio_file_path = "/Your/directory/abc.wav"
+result = model.transcribe(audio_file_path)
+text = result["text"]
+# Split by sentence using regular expressions
+sentences = re.split(r'(?<=[.!?])\s+', text)
+formatted_text = "\n".join(sentences)
+print(formatted_text)
+```
+3: It will calculate DER, give you the result of each file and save csv file
+
 # ▶️ Run Evaluation
 Execute the main script to run the evaluation on a random sample of files from the ```/data``` directory.
-
 ```python main.py```
 
 # 📈 Example Output
 The script will first log the real-time progress for each file, then display a final summary table with the results.
+The first column will display the file_name, then duration_sec, ground_truth, hypothesis and DER respectively.
 
 Processing Log
 ```python
