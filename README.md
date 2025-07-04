@@ -1,6 +1,9 @@
 # Whisper & Pyannote Speaker Diarization
-This project evaluates speaker diarization performance using pyannote/speaker-diarization-3.1 and calculates the Diarization Error Rate (DER) against RTTM ground truth files.
+This project evaluates speaker diarization performance using [pyannote/speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1) and calculates the Diarization Error Rate (DER) against RTTM ground truth files.
 
+VoxConverse dataset: https://www.kaggle.com/datasets/washingtongold/voxconverse-dataset
+
+My kaggle notebook: https://www.kaggle.com/code/kienngx/fork-of-speaker-diarization-project
 # 🚀 Setup
 
 # Prerequisites
@@ -18,9 +21,9 @@ This project evaluates speaker diarization performance using pyannote/speaker-di
 ``` pip install -r requirements.txt```
 
 - Authenticate with Hugging Face:
-  - Accept user conditions for ```pyannote/segmentation-3.0``` and ```pyannote/speaker-diarization-3.1.```
+  - Accept user conditions for [pyannote/segmentation-3.0](https://huggingface.co/pyannote/segmentation-3.0) and [pyannote/speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1)
 
-  - Create a read-only access token at hf.co/settings/tokens.
+  - Create a read-only access token at [hf.co/settings/tokens](https://huggingface.co/settings/tokens).
 
   - Open ```main.py``` and paste your token into the ```HUGGING_FACE_TOKEN``` variable.
 
